@@ -6,3 +6,6 @@ dist/
 *.exe.manifest
 *.exe.manifest
 main.spec
+applications.json
+config.json
+websites.json
