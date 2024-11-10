@@ -21,7 +21,6 @@ SoftGenie is a user-friendly application launcher built with Python and CustomTk
 
    ```bash
    git clone https://github.com/rakesh-sangode/softgenie-auto-application-start.git
-   cd softgenie
    ```
 
 2. Install the required packages:

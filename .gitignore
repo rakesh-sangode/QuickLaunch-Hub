@@ -1,11 +1,9 @@
 venv/
 build/
 dist/
+__pycache__/
 *.spec
 *.exe
 *.exe.manifest
 *.exe.manifest
 main.spec
-applications.json
-config.json
-websites.json
