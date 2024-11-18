@@ -1,13 +1,15 @@
-import customtkinter as ctk
-import sys
 import os
+import sys
+
+import customtkinter as ctk
 
 # Add the parent directory to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.ui.app_window import AppWindow
-from src.utils.file_handler import FileHandler
 from src.utils.app_launcher import AppLauncher
+from src.utils.file_handler import FileHandler
+
 
 def main():
     ctk.set_appearance_mode("System")

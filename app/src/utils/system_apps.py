@@ -1,118 +1,147 @@
 import winreg
 import os
-from win32com.client import Dispatch
-import pythoncom
-import win32gui
-import win32ui
-import win32con
-import win32api
-from PIL import Image
-import io
+
 
 class SystemApps:
     @staticmethod
-    def get_app_icon(file_path):
+    def _get_registry_value(key, name):
+        """
+        Safely get a registry value
+        """
         try:
-            large, small = win32gui.ExtractIconEx(file_path, 0)
-            if large:
-                win32gui.DestroyIcon(large[0])
-            if small:
-                # Convert icon to PIL Image
-                ico_x = win32api.GetSystemMetrics(win32con.SM_CXSMICON)
-                ico_y = win32api.GetSystemMetrics(win32con.SM_CYSMICON)
+            value = winreg.QueryValueEx(key, name)[0]
+            return value if value and isinstance(value, str) else ""
+        except (WindowsError, KeyError, TypeError):
+            return ""
+
+    @staticmethod
+    def _get_apps_from_key(key_path, hive=winreg.HKEY_LOCAL_MACHINE, flags=0):
+        """
+        Helper method to get apps from a specific registry key
+        """
+        apps = []
+        try:
+            print(f"Trying to open registry key: {key_path}")
+            key = winreg.OpenKey(hive, key_path, 0, winreg.KEY_READ | flags)
+            try:
+                num_subkeys = winreg.QueryInfoKey(key)[0]
+                print(f"Found {num_subkeys} subkeys in {key_path}")
                 
-                hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
-                hbmp = win32ui.CreateBitmap()
-                hbmp.CreateCompatibleBitmap(hdc, ico_x, ico_y)
-                hdc = hdc.CreateCompatibleDC()
-                
-                hdc.SelectObject(hbmp)
-                hdc.DrawIcon((0, 0), small[0])
-                
-                bmpstr = hbmp.GetBitmapBits(True)
-                img = Image.frombuffer(
-                    'RGBA', (ico_x, ico_y),
-                    bmpstr, 'raw', 'BGRA', 0, 1
-                )
-                
-                win32gui.DestroyIcon(small[0])
-                return img
-        except:
-            pass
-        return None
+                for i in range(num_subkeys):
+                    try:
+                        subkey_name = winreg.EnumKey(key, i)
+                        subkey = winreg.OpenKey(key, subkey_name)
+                        try:
+                            # Get the display name first
+                            name = SystemApps._get_registry_value(subkey, "DisplayName")
+                            if not name:  # Skip if no display name
+                                continue
+
+                            # Skip Windows Updates
+                            if any(x in name.lower() for x in ["security update", "update for", "service pack", "hotfix", "kb"]):
+                                continue
+
+                            print(f"Found application: {name}")
+
+                            # Get executable path
+                            exe_path = ""
+                            
+                            # Try DisplayIcon
+                            display_icon = SystemApps._get_registry_value(subkey, "DisplayIcon")
+                            if display_icon:
+                                icon_path = display_icon.split(",")[0].strip('"').strip()
+                                if icon_path.endswith('.exe') and os.path.exists(icon_path):
+                                    exe_path = icon_path
+
+                            # If no exe_path yet, try InstallLocation
+                            if not exe_path:
+                                install_location = SystemApps._get_registry_value(subkey, "InstallLocation")
+                                if install_location and os.path.exists(install_location):
+                                    for root, _, files in os.walk(install_location):
+                                        for file in files:
+                                            if file.endswith('.exe'):
+                                                potential_path = os.path.join(root, file)
+                                                if os.path.exists(potential_path):
+                                                    exe_path = potential_path
+                                                    break
+                                        if exe_path:
+                                            break
+
+                            # If still no exe_path, try UninstallString
+                            if not exe_path:
+                                uninstall_string = SystemApps._get_registry_value(subkey, "UninstallString")
+                                if uninstall_string:
+                                    parts = uninstall_string.split()
+                                    if parts:
+                                        potential_path = parts[0].strip('"')
+                                        if potential_path.endswith('.exe') and os.path.exists(potential_path):
+                                            exe_path = potential_path
+
+                            # Get other details
+                            version = SystemApps._get_registry_value(subkey, "DisplayVersion")
+                            vendor = SystemApps._get_registry_value(subkey, "Publisher")
+                            install_date = SystemApps._get_registry_value(subkey, "InstallDate")
+                            install_location = SystemApps._get_registry_value(subkey, "InstallLocation")
+
+                            apps.append({
+                                'name': name.strip(),
+                                'version': version.strip(),
+                                'vendor': vendor.strip(),
+                                'install_date': install_date.strip(),
+                                'install_location': install_location.strip(),
+                                'exe_path': exe_path.strip()
+                            })
+                        finally:
+                            winreg.CloseKey(subkey)
+                    except WindowsError as e:
+                        print(f"Error accessing subkey {i}: {str(e)}")
+                        continue
+            finally:
+                winreg.CloseKey(key)
+        except WindowsError as e:
+            print(f"Error opening registry key {key_path}: {str(e)}")
+        return apps
 
     @staticmethod
     def get_installed_apps():
+        """
+        Get installed applications using Windows Registry
+        Returns a list of dictionaries containing application information
+        """
         apps = []
         
-        # Get apps from Program Files and Program Files (x86)
-        program_paths = [
-            os.environ["ProgramFiles"],
-            os.environ.get("ProgramFiles(x86)", "")
+        # Registry paths to check
+        registry_paths = [
+            # HKEY_LOCAL_MACHINE paths for 64-bit apps
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_64KEY),
+            # HKEY_LOCAL_MACHINE paths for 32-bit apps
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall", winreg.KEY_WOW64_64KEY),
+            # HKEY_CURRENT_USER paths
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", 0),
         ]
+
+        print("Starting to fetch installed applications...")
         
-        for program_path in program_paths:
-            if os.path.exists(program_path):
-                for root, dirs, files in os.walk(program_path):
-                    for file in files:
-                        if file.endswith('.exe'):
-                            full_path = os.path.join(root, file)
-                            app_name = os.path.splitext(file)[0]
-                            icon = SystemApps.get_app_icon(full_path)
-                            apps.append({
-                                'name': app_name,
-                                'path': full_path,
-                                'icon': icon
-                            })
+        # Get apps from each registry path
+        for hive, path, flags in registry_paths:
+            try:
+                new_apps = SystemApps._get_apps_from_key(path, hive, flags)
+                print(f"Found {len(new_apps)} applications in {path}")
+                apps.extend(new_apps)
+            except Exception as e:
+                print(f"Error reading from {path}: {str(e)}")
+                continue
 
-        # Get apps from Start Menu
-        start_menu_paths = [
-            os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs"),
-            os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs")
-        ]
+        print(f"Total applications found: {len(apps)}")
 
-        for start_menu in start_menu_paths:
-            if os.path.exists(start_menu):
-                for root, dirs, files in os.walk(start_menu):
-                    for file in files:
-                        if file.endswith('.lnk'):
-                            try:
-                                shell = Dispatch("WScript.Shell")
-                                shortcut = shell.CreateShortCut(os.path.join(root, file))
-                                target_path = shortcut.Targetpath
-                                if target_path.endswith('.exe'):
-                                    app_name = os.path.splitext(file)[0]
-                                    icon = SystemApps.get_app_icon(target_path)
-                                    apps.append({
-                                        'name': app_name,
-                                        'path': target_path,
-                                        'icon': icon
-                                    })
-                            except:
-                                continue
-
-        # Get UWP apps
-        uwp_apps = {
-            "Calculator": "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App",
-            "Microsoft Store": "Microsoft.WindowsStore_8wekyb3d8bbwe!App",
-            "Settings": "Windows.ImmersiveControlPanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel",
-            "Photos": "Microsoft.Windows.Photos_8wekyb3d8bbwe!App",
-            "Notepad": "Microsoft.WindowsNotepad_8wekyb3d8bbwe!App",
-            "Microsoft Teams": "MicrosoftTeams_8wekyb3d8bbwe!Teams"
-        }
-
-        # Add UWP apps
-        for name, app_id in uwp_apps.items():
-            apps.append({
-                'name': name,
-                'path': f"UWP:{app_id}",
-                'icon': None  # UWP icons need different handling
-            })
-
-        # Remove duplicates based on path and sort by name
+        # Remove duplicates based on name and version
         unique_apps = {}
         for app in apps:
-            if app['path'] not in unique_apps:
-                unique_apps[app['path']] = app
-        
-        return sorted(unique_apps.values(), key=lambda x: x['name'].lower())
+            key = f"{app['name']}_{app['version']}".lower()
+            if key not in unique_apps or (app['exe_path'] and not unique_apps[key]['exe_path']):
+                unique_apps[key] = app
+
+        # Return sorted list by application name
+        sorted_apps = sorted(unique_apps.values(), key=lambda x: x['name'].lower())
+        print(f"Final unique applications count: {len(sorted_apps)}")
+        return sorted_apps
