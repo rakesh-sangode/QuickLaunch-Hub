@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
 from PIL import Image
 import os
+import sys
 import customtkinter as ctk
 from src.ui.theme_manager import update_listbox_colors
 from src.ui.listbox_manager import ListboxManager
@@ -25,8 +26,15 @@ class AppWindow:
         self.root.geometry(WINDOW_SIZE)
         
         # Get the absolute path to the assets directory and load icons
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.assets_dir = os.path.join(os.path.dirname(os.path.dirname(current_dir)), "assets")
+        if getattr(sys, 'frozen', False):
+            # Running in PyInstaller bundle
+            base_path = sys._MEIPASS
+        else:
+            # Running in normal Python environment
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            base_path = os.path.dirname(os.path.dirname(current_dir))
+        
+        self.assets_dir = os.path.join(base_path, "assets")
         print(f"Loading icons from: {self.assets_dir}")  # Debug print
         
         self.load_icons()

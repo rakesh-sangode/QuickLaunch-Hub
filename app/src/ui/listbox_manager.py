@@ -1,5 +1,5 @@
 import tkinter as tk
-from config import FONT_FAMILY, FONT_SIZE
+from src.config import FONT_FAMILY, FONT_SIZE
 
 class ListboxManager:
     @staticmethod

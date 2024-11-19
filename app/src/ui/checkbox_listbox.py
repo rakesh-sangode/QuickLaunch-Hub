@@ -2,14 +2,22 @@ import tkinter as tk
 import customtkinter as ctk
 import time
 import os
+import sys
 
 class CheckboxListbox(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         
         # Get the absolute path to the assets directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        assets_dir = os.path.join(os.path.dirname(os.path.dirname(current_dir)), "assets")
+        if getattr(sys, 'frozen', False):
+            # Running in PyInstaller bundle
+            base_path = sys._MEIPASS
+        else:
+            # Running in normal Python environment
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            base_path = os.path.dirname(os.path.dirname(current_dir))
+        
+        assets_dir = os.path.join(base_path, "assets")
         
         # Load custom icons with absolute paths
         self.select_icon = tk.PhotoImage(file=os.path.join(assets_dir, "select.png"))

@@ -1,10 +1,11 @@
 import os
 import sys
-
 import customtkinter as ctk
 
-# Add the parent directory to sys.path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the app directory to sys.path
+app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
 
 from src.ui.app_window import AppWindow
 from src.utils.app_launcher import AppLauncher
