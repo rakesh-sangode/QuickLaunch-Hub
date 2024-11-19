@@ -1,5 +1,5 @@
-import winreg
 import os
+import winreg
 
 
 class SystemApps:

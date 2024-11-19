@@ -1,9 +1,21 @@
 import tkinter as tk
 import customtkinter as ctk
+import time
+import os
 
 class CheckboxListbox(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
+        
+        # Get the absolute path to the assets directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(os.path.dirname(os.path.dirname(current_dir)), "assets")
+        
+        # Load custom icons with absolute paths
+        self.select_icon = tk.PhotoImage(file=os.path.join(assets_dir, "select.png"))
+        self.unselect_icon = tk.PhotoImage(file=os.path.join(assets_dir, "unselect.png"))
+        self.add_icon = tk.PhotoImage(file=os.path.join(assets_dir, "add.png"))
+        self.minus_icon = tk.PhotoImage(file=os.path.join(assets_dir, "minus.png"))
         
         # Get the correct background color based on the appearance mode
         if ctk.get_appearance_mode() == "Dark":
@@ -43,6 +55,9 @@ class CheckboxListbox(ctk.CTkFrame):
         self.checkbox_vars = []
         self._command = None
         self.items_data = {}  # Store additional data for items
+        self._scroll_speed = 2.5  # Increased scroll speed
+        self._last_scroll_time = 0
+        self._smooth_scroll_after = None  # For handling smooth scroll animation
 
         # Bind theme change event
         self.master.bind("<<ThemeChanged>>", self.update_colors)
@@ -63,9 +78,54 @@ class CheckboxListbox(ctk.CTkFrame):
 
     def bind_mouse_wheel(self, widget):
         """Bind mouse wheel to scroll"""
-        widget.bind("<MouseWheel>", self.on_mouse_wheel)
+        def _on_mousewheel(event):
+            current_time = time.time()
+            if current_time - self._last_scroll_time < 0.016:  # ~60fps
+                return "break"
+            
+            self._last_scroll_time = current_time
+            
+            # Fix scroll direction: event.delta > 0 means scroll up
+            delta = 1 if event.delta > 0 else -1
+            self._smooth_scroll(delta * self._scroll_speed)
+            
+            return "break"
+
+        # Bind to the widget and all its children
+        widget.bind("<MouseWheel>", _on_mousewheel)
+        widget.bind("<Enter>", lambda e: widget.bind_all("<MouseWheel>", _on_mousewheel))
+        widget.bind("<Leave>", lambda e: widget.unbind_all("<MouseWheel>"))
+        
         for child in widget.winfo_children():
             self.bind_mouse_wheel(child)
+
+    def _smooth_scroll(self, delta):
+        """Implement smooth scrolling animation"""
+        if self._smooth_scroll_after:
+            self.after_cancel(self._smooth_scroll_after)
+        
+        current_pos = self.canvas.yview()[0]
+        target_pos = current_pos - (delta / 80.0)  # Adjusted for faster scrolling
+        target_pos = max(0, min(1, target_pos))
+        
+        def _animate_scroll():
+            current = self.canvas.yview()[0]
+            diff = target_pos - current
+            
+            # If we're close enough to the target, stop animating
+            if abs(diff) < 0.001:
+                self.canvas.yview_moveto(target_pos)
+                self._smooth_scroll_after = None
+                return
+            
+            # Move a larger fraction of the remaining distance for faster animation
+            move_amount = diff * 0.4  # Increased from 0.3 for faster animation
+            self.canvas.yview_moveto(current + move_amount)
+            
+            # Schedule the next animation frame
+            self._smooth_scroll_after = self.after(16, _animate_scroll)
+        
+        _animate_scroll()
 
     def on_mouse_wheel(self, event):
         """Handle mouse wheel scrolling"""
@@ -185,5 +245,37 @@ class CheckboxListbox(ctk.CTkFrame):
         """Unselect all checkboxes"""
         for var in self.checkbox_vars:
             var.set(False)
+        if self._command:
+            self._command()
+
+    def add_item(self, text, data=None):
+        """Add a new item to the listbox"""
+        var = tk.BooleanVar()
+        checkbox = ctk.CTkCheckBox(
+            self.scrollable_frame,
+            text=text,
+            variable=var,
+            command=lambda: self._on_checkbox_click(checkbox),
+            image=self.unselect_icon,
+            selectimage=self.select_icon,
+            width=32,
+            height=32
+        )
+        checkbox.pack(fill="x", padx=5, pady=2)
+        
+        self.checkboxes.append(checkbox)
+        self.checkbox_vars.append(var)
+        
+        if data is not None:
+            self.items_data[checkbox] = data
+        
+        return checkbox
+
+    def _on_checkbox_click(self, checkbox):
+        """Handle checkbox click event"""
+        is_checked = checkbox.get()
+        checkbox.configure(
+            image=self.select_icon if is_checked else self.unselect_icon
+        )
         if self._command:
             self._command()

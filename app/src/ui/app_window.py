@@ -1,40 +1,79 @@
-import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog
+from PIL import Image
+import os
+import customtkinter as ctk
 from src.ui.theme_manager import update_listbox_colors
 from src.ui.listbox_manager import ListboxManager
 from src.config import WINDOW_TITLE, WINDOW_SIZE, UWP_APPS
 from src.ui.custom_scrollbar import ModernScrollbar
 from src.ui.checkbox_listbox import CheckboxListbox
 from src.utils.system_apps import SystemApps
-import os
-from PIL import Image
+from src.utils.file_handler import FileHandler
+from src.utils.app_launcher import AppLauncher
 
 class AppWindow:
-    def __init__(self, file_handler, app_launcher):
+    def __init__(self, file_handler: FileHandler, app_launcher: AppLauncher):
         self.file_handler = file_handler
         self.app_launcher = app_launcher
         self.apps = self.file_handler.load_applications()
         self.websites = self.file_handler.load_websites()
         
-        # Load icons
-        self.icons = {}
-        icons_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets', 'icons')
-        for icon_name in ['add', 'remove', 'select_all', 'unselect_all']:
-            icon_path = os.path.join(icons_dir, f'{icon_name}.png')
-            if os.path.exists(icon_path):
-                self.icons[icon_name] = ctk.CTkImage(
-                    light_image=Image.open(icon_path),
-                    dark_image=Image.open(icon_path),
-                    size=(24, 24)
-                )
+        # Create the main window first
+        self.root = ctk.CTk()
+        self.root.title(WINDOW_TITLE)
+        self.root.geometry(WINDOW_SIZE)
         
-        self.setup_window()
+        # Get the absolute path to the assets directory and load icons
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.assets_dir = os.path.join(os.path.dirname(os.path.dirname(current_dir)), "assets")
+        print(f"Loading icons from: {self.assets_dir}")  # Debug print
+        
+        self.load_icons()
         self.setup_ui()
         self.bind_events()
 
+    def load_icons(self):
+        """Load all icons after window creation"""
+        try:
+            # Load and resize icons using PIL first
+            add_img = Image.open(os.path.join(self.assets_dir, "add.png"))
+            minus_img = Image.open(os.path.join(self.assets_dir, "minus.png"))
+            select_img = Image.open(os.path.join(self.assets_dir, "select.png"))
+            unselect_img = Image.open(os.path.join(self.assets_dir, "unselect.png"))
+            
+            # Create CTkImage objects with both light and dark mode versions
+            icon_size = (20, 20)  # Reduced from 32x32 to 20x20
+            
+            self.add_icon = ctk.CTkImage(
+                light_image=add_img,
+                dark_image=add_img,
+                size=icon_size
+            )
+            self.minus_icon = ctk.CTkImage(
+                light_image=minus_img,
+                dark_image=minus_img,
+                size=icon_size
+            )
+            self.select_icon = ctk.CTkImage(
+                light_image=select_img,
+                dark_image=select_img,
+                size=icon_size
+            )
+            self.unselect_icon = ctk.CTkImage(
+                light_image=unselect_img,
+                dark_image=unselect_img,
+                size=icon_size
+            )
+            print("Icons loaded successfully")  # Debug print
+        except Exception as e:
+            print(f"Error loading icons: {e}")
+            self.add_icon = None
+            self.minus_icon = None
+            self.select_icon = None
+            self.unselect_icon = None
+
     def setup_window(self):
-        self.root = ctk.CTk()
         self.root.title(WINDOW_TITLE)
         self.root.geometry(WINDOW_SIZE)
 
@@ -105,8 +144,8 @@ class AppWindow:
             all_apps_button_frame,
             text="",
             width=40,
-            height=40,
-            image=self.icons.get('add'),
+            height=28,  # Reduced from 40 to 28
+            image=self.add_icon,
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
             command=self.add_from_all_apps
@@ -117,8 +156,8 @@ class AppWindow:
             all_apps_button_frame,
             text="",
             width=40,
-            height=40,
-            image=self.icons.get('remove'),
+            height=28,  # Reduced from 40 to 28
+            image=self.minus_icon,
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
             command=self.remove_from_all_apps
@@ -128,22 +167,26 @@ class AppWindow:
         select_all_button = ctk.CTkButton(
             all_apps_button_frame,
             text="Select All",
-            image=self.icons.get('select_all'),
+            image=self.select_icon,
             compound="left",
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
-            command=self.select_all_apps
+            command=self.select_all_apps,
+            width=90,  # Reduced from 100 to 90
+            height=28  # Reduced from 32 to 28
         )
         select_all_button.pack(side="left", padx=2)
 
         unselect_all_button = ctk.CTkButton(
             all_apps_button_frame,
             text="Unselect All",
-            image=self.icons.get('unselect_all'),
+            image=self.unselect_icon,
             compound="left",
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
-            command=self.unselect_all_apps
+            command=self.unselect_all_apps,
+            width=90,  # Reduced from 100 to 90
+            height=28  # Reduced from 32 to 28
         )
         unselect_all_button.pack(side="left", padx=2)
 
