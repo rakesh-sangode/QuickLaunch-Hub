@@ -43,27 +43,28 @@ class AppWindow:
             unselect_img = Image.open(os.path.join(self.assets_dir, "unselect.png"))
             
             # Create CTkImage objects with both light and dark mode versions
-            icon_size = (20, 20)  # Reduced from 32x32 to 20x20
+            small_icon_size = (16, 16)  # Smaller size for add/minus icons
+            normal_icon_size = (24, 24)  # Original size for select/unselect icons
             
             self.add_icon = ctk.CTkImage(
                 light_image=add_img,
                 dark_image=add_img,
-                size=icon_size
+                size=small_icon_size
             )
             self.minus_icon = ctk.CTkImage(
                 light_image=minus_img,
                 dark_image=minus_img,
-                size=icon_size
+                size=small_icon_size
             )
             self.select_icon = ctk.CTkImage(
                 light_image=select_img,
                 dark_image=select_img,
-                size=icon_size
+                size=normal_icon_size
             )
             self.unselect_icon = ctk.CTkImage(
                 light_image=unselect_img,
                 dark_image=unselect_img,
-                size=icon_size
+                size=normal_icon_size
             )
             print("Icons loaded successfully")  # Debug print
         except Exception as e:
@@ -78,73 +79,69 @@ class AppWindow:
         self.root.geometry(WINDOW_SIZE)
 
     def setup_ui(self):
-        # Main container with grid layout
+        """Setup the main user interface"""
+        # Create main container
         self.container = ctk.CTkFrame(self.root)
-        self.container.pack(fill="both", expand=True, padx=20, pady=20)
-        self.container.grid_columnconfigure(1, weight=1)
-        self.container.grid_rowconfigure(0, weight=1)
+        self.container.pack(expand=True, fill="both", padx=10, pady=10)
+        self.container.grid_columnconfigure(0, weight=1)
+        self.container.grid_rowconfigure(1, weight=1)
 
-        # Left sidebar for buttons
-        self.setup_sidebar()
-        
-        # Right side tabview
-        self.setup_tabview()
+        # Create top button frame
+        top_button_frame = ctk.CTkFrame(self.container)
+        top_button_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 10))
+        top_button_frame.grid_columnconfigure(0, weight=1)  # For centering
 
-    def setup_sidebar(self):
-        # Button frame on the left
-        self.button_frame = ctk.CTkFrame(self.container)
-        self.button_frame.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="nsew")
+        # Create center frame for buttons
+        center_frame = ctk.CTkFrame(top_button_frame)
+        center_frame.grid(row=0, column=0)
 
-        # Add buttons vertically
-        add_app_button = ctk.CTkButton(self.button_frame, text="Add Application", command=self.add_application)
-        add_app_button.pack(padx=10, pady=2, fill="x")
+        # Add launch buttons horizontally
+        launch_apps_button = ctk.CTkButton(
+            center_frame, 
+            text="Launch Applications", 
+            command=self.launch_applications,
+            height=32
+        )
+        launch_apps_button.pack(side="left", padx=5)
 
-        add_website_button = ctk.CTkButton(self.button_frame, text="Add Website", command=self.add_website)
-        add_website_button.pack(padx=10, pady=2, fill="x")
+        launch_websites_button = ctk.CTkButton(
+            center_frame, 
+            text="Launch Websites", 
+            command=self.launch_websites,
+            height=32
+        )
+        launch_websites_button.pack(side="left", padx=5)
 
-        remove_app_button = ctk.CTkButton(self.button_frame, text="Remove Application", command=self.remove_application)
-        remove_app_button.pack(padx=10, pady=2, fill="x")
+        launch_all_button = ctk.CTkButton(
+            center_frame, 
+            text="Launch Apps & Websites", 
+            command=self.launch_all,
+            height=32
+        )
+        launch_all_button.pack(side="left", padx=5)
 
-        remove_website_button = ctk.CTkButton(self.button_frame, text="Remove Website", command=self.remove_website)
-        remove_website_button.pack(padx=10, pady=2, fill="x")
-
-        launch_apps_button = ctk.CTkButton(self.button_frame, text="Launch Applications", command=self.launch_applications)
-        launch_apps_button.pack(padx=10, pady=2, fill="x")
-
-        launch_websites_button = ctk.CTkButton(self.button_frame, text="Launch Websites", command=self.launch_websites)
-        launch_websites_button.pack(padx=10, pady=2, fill="x")
-
-        launch_all_button = ctk.CTkButton(self.button_frame, text="Launch Apps & Websites", command=self.launch_all)
-        launch_all_button.pack(padx=10, pady=2, fill="x")
-
-    def setup_tabview(self):
-        # Create tabview
+        # Add tab view
         self.tabview = ctk.CTkTabview(self.container)
-        self.tabview.grid(row=0, column=1, sticky="nsew")
+        self.tabview.grid(row=1, column=0, sticky="nsew")
 
-        # Create tabs in new order
+        # Add tabs
         self.tabview.add("All Apps")
         self.tabview.add("My Applications")
         self.tabview.add("Websites")
 
-        # Set All Apps as default
-        self.tabview.set("All Apps")
-
         # All Apps tab
         all_apps_frame = self.tabview.tab("All Apps")
-        all_apps_frame.grid_columnconfigure(0, weight=1)
-        all_apps_frame.grid_rowconfigure(1, weight=1)
-
-        # Create button frame for All Apps tab
+        
+        # Create button frame at the top
         all_apps_button_frame = ctk.CTkFrame(all_apps_frame)
-        all_apps_button_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        all_apps_button_frame.pack(side="top", fill="x", padx=5, pady=5)
 
         # Add buttons with icons
         add_to_my_apps_button = ctk.CTkButton(
             all_apps_button_frame,
             text="",
-            width=40,
-            height=28,  # Reduced from 40 to 28
+            width=28,
+            height=28,
             image=self.add_icon,
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
@@ -155,8 +152,8 @@ class AppWindow:
         remove_from_my_apps_button = ctk.CTkButton(
             all_apps_button_frame,
             text="",
-            width=40,
-            height=28,  # Reduced from 40 to 28
+            width=28,
+            height=28,
             image=self.minus_icon,
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
@@ -172,8 +169,8 @@ class AppWindow:
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
             command=self.select_all_apps,
-            width=90,  # Reduced from 100 to 90
-            height=28  # Reduced from 32 to 28
+            width=100,
+            height=32
         )
         select_all_button.pack(side="left", padx=2)
 
@@ -185,18 +182,18 @@ class AppWindow:
             fg_color="transparent",
             hover_color=("gray75", "gray25"),
             command=self.unselect_all_apps,
-            width=90,  # Reduced from 100 to 90
-            height=28  # Reduced from 32 to 28
+            width=100,
+            height=32
         )
         unselect_all_button.pack(side="left", padx=2)
 
         # Create frame for checkbox listbox
         all_apps_list_frame = ctk.CTkFrame(all_apps_frame)
-        all_apps_list_frame.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+        all_apps_list_frame.pack(expand=True, fill="both", padx=5, pady=5)
 
         # Create and pack the checkbox listbox
         self.all_apps_listbox = CheckboxListbox(all_apps_list_frame)
-        self.all_apps_listbox.pack(fill="both", expand=True)
+        self.all_apps_listbox.pack(expand=True, fill="both")
 
         # My Applications tab
         app_frame = self.tabview.tab("My Applications")

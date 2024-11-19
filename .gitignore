@@ -1,7 +1,7 @@
 venv/
 build/
 dist/
-__pycache__/
+**/__pycache__/
 *.spec
 *.exe
 *.exe.manifest
