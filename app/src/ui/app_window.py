@@ -294,32 +294,57 @@ class AppWindow:
         )
         remove_website_button.pack(side="left", padx=2)
 
-        # Create frame for listbox and scrollbar
+        # Create frame for the list
         website_list_frame = ctk.CTkFrame(website_frame)
-        website_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+        website_list_frame.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
 
-        # Create and pack the website listbox
-        self.website_listbox = tk.Listbox(
+        # Get the correct background color based on the appearance mode
+        if ctk.get_appearance_mode() == "Dark":
+            canvas_bg = "#2b2b2b"  # Dark theme background
+        else:
+            canvas_bg = "#dbdbdb"  # Light theme background
+
+        # Create a canvas and scrollbar
+        self.website_canvas = tk.Canvas(
             website_list_frame,
-            borderwidth=1,
+            borderwidth=0,
             highlightthickness=0,
-            font=("Arial", 12),
-            activestyle='none',
-            relief="solid"
+            bg=canvas_bg
         )
-        self.website_listbox.pack(side="left", fill="both", expand=True)
+        self.website_scrollbar = ctk.CTkScrollbar(website_list_frame, command=self.website_canvas.yview)
+        self.website_scrollable_frame = ctk.CTkFrame(self.website_canvas)
 
-        # Create and pack the scrollbar
-        website_scrollbar = ModernScrollbar(website_list_frame)
-        website_scrollbar.pack(side="right", fill="y", padx=(2, 0))
+        # Configure canvas
+        self.website_canvas.configure(yscrollcommand=self.website_scrollbar.set)
+        
+        # Pack widgets
+        self.website_scrollbar.pack(side="right", fill="y")
+        self.website_canvas.pack(side="left", fill="both", expand=True)
+        
+        # Create a window in the canvas for the scrollable frame
+        self.website_canvas_frame = self.website_canvas.create_window((0, 0), window=self.website_scrollable_frame, anchor="nw")
+        
+        # Bind events
+        self.website_scrollable_frame.bind("<Configure>", lambda e: self.website_canvas.configure(scrollregion=self.website_canvas.bbox("all")))
+        self.website_canvas.bind("<Configure>", lambda e: self.website_canvas.itemconfig(self.website_canvas_frame, width=e.width))
 
-        # Connect listbox and scrollbar
-        self.website_listbox.configure(yscrollcommand=website_scrollbar.set)
-        website_scrollbar.configure(command=self.website_listbox.yview)
+        # Bind mouse wheel
+        def _on_website_mousewheel(event):
+            self.website_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        # Update initial content
-        self.update_all_apps_list()
-        self.update_listboxes()
+        self.website_canvas.bind_all("<MouseWheel>", _on_website_mousewheel)
+
+        # Store frames for websites
+        self.website_frames = []
+
+        # Update colors on theme change
+        def update_website_colors(event=None):
+            bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
+            self.website_canvas.configure(bg=bg_color)
+            for frame in self.website_frames:
+                frame.configure(fg_color=bg_color)
+
+        self.root.bind("<<ThemeChanged>>", update_website_colors)
 
     def bind_events(self):
         self.root.bind("<<AppearanceModeChanged>>", 
@@ -367,9 +392,25 @@ class AppWindow:
             # No need for dividers as the gray backgrounds provide visual separation
 
         # Update websites
-        self.website_listbox.delete(0, tk.END)
-        for website in self.websites:
-            self.website_listbox.insert(tk.END, website)
+        self.website_canvas.delete("all")
+        self.website_scrollable_frame.destroy()
+        self.website_scrollable_frame = ctk.CTkFrame(self.website_canvas)
+        self.website_canvas_frame = self.website_canvas.create_window((0, 0), window=self.website_scrollable_frame, anchor="nw")
+        self.website_scrollable_frame.bind("<Configure>", lambda e: self.website_canvas.configure(scrollregion=self.website_canvas.bbox("all")))
+        self.website_canvas.bind("<Configure>", lambda e: self.website_canvas.itemconfig(self.website_canvas_frame, width=e.width))
+        self.website_frames = []
+        
+        # Update websites with proper formatting
+        for i, website in enumerate(self.websites):
+            # Create frame for the website with gray background
+            bg_color = "#e6e6e6" if ctk.get_appearance_mode() == "Light" else "#333333"
+            website_frame = ctk.CTkFrame(self.website_scrollable_frame, fg_color=bg_color)
+            website_frame.pack(fill="x", padx=10, pady=(1, 0))  # Small top padding for separation
+            self.website_frames.append(website_frame)
+
+            # Add website name
+            website_label = ctk.CTkLabel(website_frame, text=website, font=("Arial", 14), anchor="w", height=24)
+            website_label.pack(fill="x", padx=10, pady=0)
 
     def add_application(self):
         add_type = messagebox.askquestion("Add Application", 
@@ -391,9 +432,11 @@ class AppWindow:
         self.update_listboxes()
 
     def add_website(self):
-        website_url = simpledialog.askstring("Add Website", "Enter the website URL:")
-        if website_url:
-            self.websites.append(website_url)
+        website = simpledialog.askstring("Add Website", "Enter website URL:")
+        if website:
+            if not website.startswith(('http://', 'https://')):
+                website = 'https://' + website
+            self.websites.append(website)
             self.file_handler.save_websites(self.websites)
             self.update_listboxes()
 
@@ -423,11 +466,23 @@ class AppWindow:
             messagebox.showinfo("Success", f"Removed {removed_count} application(s)")
 
     def remove_website(self):
-        selected = self.website_listbox.curselection()
-        if selected:
-            self.websites.pop(selected[0])
-            self.file_handler.save_websites(self.websites)
-            self.update_listboxes()
+        # Get the index of the clicked website frame
+        selected_frame = None
+        for i, frame in enumerate(self.website_frames):
+            if frame.winfo_containing(
+                frame.winfo_pointerx() - frame.winfo_rootx(),
+                frame.winfo_pointery() - frame.winfo_rooty()
+            ):
+                selected_frame = i
+                break
+
+        if selected_frame is not None:
+            website = self.websites[selected_frame]
+            if messagebox.askyesno("Remove Website", f"Are you sure you want to remove {website}?"):
+                self.websites.pop(selected_frame)
+                self.file_handler.save_websites(self.websites)
+                self.update_listboxes()
+                messagebox.showinfo("Success", f"Removed {website}")
 
     def launch_applications(self):
         """Launch all applications in My Applications tab"""
@@ -444,11 +499,14 @@ class AppWindow:
             messagebox.showinfo("Info", "No applications to launch")
 
     def launch_websites(self):
-        """Launch all websites in Websites tab"""
-        if self.websites:
-            self.app_launcher.launch_websites(self.websites)
-        else:
-            messagebox.showinfo("Info", "No websites to launch")
+        if not self.websites:
+            messagebox.showinfo("No Websites", "No websites to launch.")
+            return
+        
+        for website in self.websites:
+            self.app_launcher.launch_website(website)
+        
+        messagebox.showinfo("Success", f"Launched {len(self.websites)} website(s)")
 
     def launch_all(self):
         """Launch both applications and websites"""
