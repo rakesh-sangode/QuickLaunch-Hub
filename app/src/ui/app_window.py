@@ -263,11 +263,40 @@ class AppWindow:
         # Websites tab
         website_frame = self.tabview.tab("Websites")
         website_frame.grid_columnconfigure(0, weight=1)
-        website_frame.grid_rowconfigure(0, weight=1)
+        website_frame.grid_rowconfigure(1, weight=1)
+
+        # Create button frame at the top
+        website_button_frame = ctk.CTkFrame(website_frame)
+        website_button_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+
+        # Add buttons with icons
+        add_website_button = ctk.CTkButton(
+            website_button_frame,
+            text="",
+            width=28,
+            height=28,
+            image=self.add_icon,
+            fg_color="transparent",
+            hover_color=("gray75", "gray25"),
+            command=self.add_website
+        )
+        add_website_button.pack(side="left", padx=2)
+
+        remove_website_button = ctk.CTkButton(
+            website_button_frame,
+            text="",
+            width=28,
+            height=28,
+            image=self.minus_icon,
+            fg_color="transparent",
+            hover_color=("gray75", "gray25"),
+            command=self.remove_website
+        )
+        remove_website_button.pack(side="left", padx=2)
 
         # Create frame for listbox and scrollbar
         website_list_frame = ctk.CTkFrame(website_frame)
-        website_list_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        website_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
         # Create and pack the website listbox
         self.website_listbox = tk.Listbox(
