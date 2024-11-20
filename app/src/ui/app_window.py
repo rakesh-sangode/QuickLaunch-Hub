@@ -139,10 +139,12 @@ class AppWindow:
 
         # All Apps tab
         all_apps_frame = self.tabview.tab("All Apps")
-        
+        all_apps_frame.grid_columnconfigure(0, weight=1)
+        all_apps_frame.grid_rowconfigure(1, weight=1)
+
         # Create button frame at the top
         all_apps_button_frame = ctk.CTkFrame(all_apps_frame)
-        all_apps_button_frame.pack(side="top", fill="x", padx=5, pady=5)
+        all_apps_button_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
 
         # Add buttons with icons
         add_to_my_apps_button = ctk.CTkButton(
@@ -195,70 +197,119 @@ class AppWindow:
         )
         unselect_all_button.pack(side="left", padx=2)
 
-        # Create frame for checkbox listbox
-        all_apps_list_frame = ctk.CTkFrame(all_apps_frame)
-        all_apps_list_frame.pack(expand=True, fill="both", padx=5, pady=5)
-
-        # Create and pack the checkbox listbox
-        self.all_apps_listbox = CheckboxListbox(all_apps_list_frame)
-        self.all_apps_listbox.pack(expand=True, fill="both")
-
-        # My Applications tab
-        app_frame = self.tabview.tab("My Applications")
-        app_frame.grid_columnconfigure(0, weight=1)
-        app_frame.grid_rowconfigure(1, weight=1)
-
         # Create frame for the list
-        app_list_frame = ctk.CTkFrame(app_frame)
-        app_list_frame.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+        all_apps_list_frame = ctk.CTkFrame(all_apps_frame)
+        all_apps_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
-        # Get the correct background color based on the appearance mode
-        if ctk.get_appearance_mode() == "Dark":
-            canvas_bg = "#2b2b2b"  # Dark theme background
-        else:
-            canvas_bg = "#dbdbdb"  # Light theme background
-
-        # Create a canvas and scrollbar
-        self.app_canvas = tk.Canvas(
-            app_list_frame,
+        # Create scrollable canvas
+        bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
+        self.all_apps_canvas = tk.Canvas(
+            all_apps_list_frame,
             borderwidth=0,
             highlightthickness=0,
-            bg=canvas_bg
+            bg=bg_color
         )
-        self.app_scrollbar = ctk.CTkScrollbar(app_list_frame, command=self.app_canvas.yview)
-        self.app_scrollable_frame = ctk.CTkFrame(self.app_canvas)
+        self.all_apps_scrollbar = ctk.CTkScrollbar(all_apps_list_frame, command=self.all_apps_canvas.yview)
+        self.all_apps_scrollable_frame = ctk.CTkFrame(self.all_apps_canvas)
 
         # Configure canvas
-        self.app_canvas.configure(yscrollcommand=self.app_scrollbar.set)
-        
-        # Pack widgets
-        self.app_scrollbar.pack(side="right", fill="y")
-        self.app_canvas.pack(side="left", fill="both", expand=True)
-        
-        # Create a window in the canvas for the scrollable frame
-        self.app_canvas_frame = self.app_canvas.create_window((0, 0), window=self.app_scrollable_frame, anchor="nw")
-        
-        # Bind events
-        self.app_scrollable_frame.bind("<Configure>", lambda e: self.app_canvas.configure(scrollregion=self.app_canvas.bbox("all")))
-        self.app_canvas.bind("<Configure>", lambda e: self.app_canvas.itemconfig(self.app_canvas_frame, width=e.width))
+        self.all_apps_canvas.configure(yscrollcommand=self.all_apps_scrollbar.set)
+        self.all_apps_scrollbar.pack(side="right", fill="y")
+        self.all_apps_canvas.pack(side="left", fill="both", expand=True)
 
-        # Bind mouse wheel
-        def _on_mousewheel(event):
-            self.app_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        # Create window for scrollable frame
+        self.all_apps_canvas_frame = self.all_apps_canvas.create_window(
+            (0, 0),
+            window=self.all_apps_scrollable_frame,
+            anchor="nw"
+        )
 
-        self.app_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Configure scrolling
+        self.all_apps_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.all_apps_canvas.configure(scrollregion=self.all_apps_canvas.bbox("all"))
+        )
+        self.all_apps_canvas.bind(
+            "<Configure>",
+            lambda e: self.all_apps_canvas.itemconfig(self.all_apps_canvas_frame, width=e.width)
+        )
 
-        # Store frames for applications
+        # Initialize all apps frames list
+        self.all_apps_frames = []
+
+        # My Applications tab
+        my_apps_frame = self.tabview.tab("My Applications")
+        my_apps_frame.grid_columnconfigure(0, weight=1)
+        my_apps_frame.grid_rowconfigure(1, weight=1)
+
+        # Create button frame at the top
+        my_apps_button_frame = ctk.CTkFrame(my_apps_frame)
+        my_apps_button_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+
+        # Add buttons with icons
+        add_app_button = ctk.CTkButton(
+            my_apps_button_frame,
+            text="",
+            width=28,
+            height=28,
+            image=self.add_icon,
+            fg_color="transparent",
+            hover_color=("gray75", "gray25"),
+            command=self.add_application
+        )
+        add_app_button.pack(side="left", padx=2)
+
+        remove_app_button = ctk.CTkButton(
+            my_apps_button_frame,
+            text="",
+            width=28,
+            height=28,
+            image=self.minus_icon,
+            fg_color="transparent",
+            hover_color=("gray75", "gray25"),
+            command=self.remove_application
+        )
+        remove_app_button.pack(side="left", padx=2)
+
+        # Create frame for applications list
+        my_apps_list_frame = ctk.CTkFrame(my_apps_frame)
+        my_apps_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+
+        # Create scrollable canvas
+        bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
+        self.my_apps_canvas = tk.Canvas(
+            my_apps_list_frame,
+            borderwidth=0,
+            highlightthickness=0,
+            bg=bg_color
+        )
+        self.my_apps_scrollbar = ctk.CTkScrollbar(my_apps_list_frame, command=self.my_apps_canvas.yview)
+        self.my_apps_scrollable_frame = ctk.CTkFrame(self.my_apps_canvas)
+
+        # Configure canvas
+        self.my_apps_canvas.configure(yscrollcommand=self.my_apps_scrollbar.set)
+        self.my_apps_scrollbar.pack(side="right", fill="y")
+        self.my_apps_canvas.pack(side="left", fill="both", expand=True)
+
+        # Create window for scrollable frame
+        self.my_apps_canvas_frame = self.my_apps_canvas.create_window(
+            (0, 0),
+            window=self.my_apps_scrollable_frame,
+            anchor="nw"
+        )
+
+        # Configure scrolling
+        self.my_apps_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.my_apps_canvas.configure(scrollregion=self.my_apps_canvas.bbox("all"))
+        )
+        self.my_apps_canvas.bind(
+            "<Configure>",
+            lambda e: self.my_apps_canvas.itemconfig(self.my_apps_canvas_frame, width=e.width)
+        )
+
+        # Initialize app frames list
         self.app_frames = []
-
-        # Update colors on theme change
-        def update_app_colors(event=None):
-            bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
-            self.app_canvas.configure(bg=bg_color)
-            for frame in self.app_frames:
-                frame.configure(fg_color=bg_color)
-
-        self.root.bind("<<ThemeChanged>>", update_app_colors)
 
         # Websites tab
         website_frame = self.tabview.tab("Websites")
@@ -294,123 +345,200 @@ class AppWindow:
         )
         remove_website_button.pack(side="left", padx=2)
 
-        # Create frame for the list
+        # Create frame for websites list
         website_list_frame = ctk.CTkFrame(website_frame)
-        website_list_frame.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+        website_list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
-        # Get the correct background color based on the appearance mode
-        if ctk.get_appearance_mode() == "Dark":
-            canvas_bg = "#2b2b2b"  # Dark theme background
-        else:
-            canvas_bg = "#dbdbdb"  # Light theme background
-
-        # Create a canvas and scrollbar
+        # Create scrollable canvas
+        bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
         self.website_canvas = tk.Canvas(
             website_list_frame,
             borderwidth=0,
             highlightthickness=0,
-            bg=canvas_bg
+            bg=bg_color
         )
         self.website_scrollbar = ctk.CTkScrollbar(website_list_frame, command=self.website_canvas.yview)
         self.website_scrollable_frame = ctk.CTkFrame(self.website_canvas)
 
         # Configure canvas
         self.website_canvas.configure(yscrollcommand=self.website_scrollbar.set)
-        
-        # Pack widgets
         self.website_scrollbar.pack(side="right", fill="y")
         self.website_canvas.pack(side="left", fill="both", expand=True)
-        
-        # Create a window in the canvas for the scrollable frame
-        self.website_canvas_frame = self.website_canvas.create_window((0, 0), window=self.website_scrollable_frame, anchor="nw")
-        
-        # Bind events
-        self.website_scrollable_frame.bind("<Configure>", lambda e: self.website_canvas.configure(scrollregion=self.website_canvas.bbox("all")))
-        self.website_canvas.bind("<Configure>", lambda e: self.website_canvas.itemconfig(self.website_canvas_frame, width=e.width))
 
-        # Bind mouse wheel
-        def _on_website_mousewheel(event):
-            self.website_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        # Create window for scrollable frame
+        self.website_canvas_frame = self.website_canvas.create_window(
+            (0, 0),
+            window=self.website_scrollable_frame,
+            anchor="nw"
+        )
 
-        self.website_canvas.bind_all("<MouseWheel>", _on_website_mousewheel)
+        # Configure scrolling
+        self.website_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.website_canvas.configure(scrollregion=self.website_canvas.bbox("all"))
+        )
+        self.website_canvas.bind(
+            "<Configure>",
+            lambda e: self.website_canvas.itemconfig(self.website_canvas_frame, width=e.width)
+        )
 
-        # Store frames for websites
+        # Initialize website frames list
         self.website_frames = []
 
-        # Update colors on theme change
-        def update_website_colors(event=None):
-            bg_color = "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#dbdbdb"
-            self.website_canvas.configure(bg=bg_color)
-            for frame in self.website_frames:
-                frame.configure(fg_color=bg_color)
-
-        self.root.bind("<<ThemeChanged>>", update_website_colors)
+        # Update initial content
+        self.update_all_apps_list()
+        self.update_listboxes()
 
     def bind_events(self):
         self.root.bind("<<AppearanceModeChanged>>", 
                       lambda _: update_listbox_colors(
                           self.app_listbox, 
-                          self.website_listbox, 
+                          self.website_frames,  # Pass website frames instead of listbox
                           self.tabview, 
                           self.button_frame
                       ))
 
     def update_listboxes(self):
-        self.app_canvas.delete("all")
-        self.app_scrollable_frame.destroy()
-        self.app_scrollable_frame = ctk.CTkFrame(self.app_canvas)
-        self.app_canvas_frame = self.app_canvas.create_window((0, 0), window=self.app_scrollable_frame, anchor="nw")
-        self.app_scrollable_frame.bind("<Configure>", lambda e: self.app_canvas.configure(scrollregion=self.app_canvas.bbox("all")))
-        self.app_canvas.bind("<Configure>", lambda e: self.app_canvas.itemconfig(self.app_canvas_frame, width=e.width))
+        self.my_apps_canvas.delete("all")
+        self.my_apps_scrollable_frame.destroy()
+        self.my_apps_scrollable_frame = ctk.CTkFrame(self.my_apps_canvas)
+        self.my_apps_canvas_frame = self.my_apps_canvas.create_window((0, 0), window=self.my_apps_scrollable_frame, anchor="nw")
+        self.my_apps_scrollable_frame.bind("<Configure>", lambda e: self.my_apps_canvas.configure(scrollregion=self.my_apps_canvas.bbox("all")))
+        self.my_apps_canvas.bind("<Configure>", lambda e: self.my_apps_canvas.itemconfig(self.my_apps_canvas_frame, width=e.width))
         self.app_frames = []
         
         # Update applications with proper formatting
-        for i, app in enumerate(self.apps):
-            # Create frame for the application with gray background
+        for idx, app in enumerate(self.apps, 1):
+            # Create frame for each application
             bg_color = "#e6e6e6" if ctk.get_appearance_mode() == "Light" else "#333333"
-            app_frame = ctk.CTkFrame(self.app_scrollable_frame, fg_color=bg_color)
-            app_frame.pack(fill="x", padx=10, pady=(1, 0))  # Small top padding for separation
+            app_frame = ctk.CTkFrame(
+                self.my_apps_scrollable_frame,
+                fg_color=bg_color,
+                corner_radius=10
+            )
+            app_frame.pack(fill="x", padx=10, pady=(5 if idx == 1 else 2))
             self.app_frames.append(app_frame)
-
-            # Add application name
-            if isinstance(app, dict):
-                if "uwp" in app:
-                    # Format UWP apps
-                    app_name = app['uwp'].split('!')[-1]  # Get the app name part
-                    display_name = f"UWP: {app_name}"
-                    app_label = ctk.CTkLabel(app_frame, text=display_name, font=("Arial", 14), anchor="w", height=24)
-                else:
-                    # Format regular apps with their name
-                    app_label = ctk.CTkLabel(app_frame, text=app['name'], font=("Arial", 14), anchor="w", height=24)
-            else:
-                # Format executable files
-                app_name = os.path.basename(app)
-                app_label = ctk.CTkLabel(app_frame, text=app_name, font=("Arial", 14), anchor="w", height=24)
             
-            app_label.pack(fill="x", padx=10, pady=0)
-
-            # No need for dividers as the gray backgrounds provide visual separation
+            # Create left frame for index
+            index_frame = ctk.CTkFrame(
+                app_frame,
+                fg_color="#007AFF",  # Blue accent color
+                width=30,
+                height=32,
+                corner_radius=10
+            )
+            index_frame.pack(side="left", padx=(0, 10))
+            index_frame.pack_propagate(False)
+            
+            # Add index number
+            index_label = ctk.CTkLabel(
+                index_frame,
+                text=str(idx),
+                font=("Arial Bold", 14),
+                text_color="white"
+            )
+            index_label.place(relx=0.5, rely=0.5, anchor="center")
+            
+            # Create right frame for app content
+            content_frame = ctk.CTkFrame(
+                app_frame,
+                fg_color="transparent"
+            )
+            content_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=3)
+            
+            # Add app name and path
+            if isinstance(app, dict):
+                app_name = app.get('name', 'Unknown')
+                app_path = app.get('path', 'Unknown')
+            else:
+                app_name = app
+                app_path = app
+            
+            app_label = ctk.CTkLabel(
+                content_frame,
+                text=app_name,
+                font=("Arial", 14),
+                anchor="w"
+            )
+            app_label.pack(side="left", fill="x", expand=True)
+            
+            # Add launch button
+            launch_button = ctk.CTkButton(
+                content_frame,
+                text="Launch",
+                width=70,
+                height=24,
+                font=("Arial", 12),
+                fg_color="#28a745",  # Green color
+                hover_color="#218838",  # Darker green
+                command=lambda app=app: self.launch_application(app)
+            )
+            launch_button.pack(side="right", padx=5)
 
         # Update websites
-        self.website_canvas.delete("all")
-        self.website_scrollable_frame.destroy()
-        self.website_scrollable_frame = ctk.CTkFrame(self.website_canvas)
-        self.website_canvas_frame = self.website_canvas.create_window((0, 0), window=self.website_scrollable_frame, anchor="nw")
-        self.website_scrollable_frame.bind("<Configure>", lambda e: self.website_canvas.configure(scrollregion=self.website_canvas.bbox("all")))
-        self.website_canvas.bind("<Configure>", lambda e: self.website_canvas.itemconfig(self.website_canvas_frame, width=e.width))
-        self.website_frames = []
+        for frame in self.website_frames:
+            frame.destroy()
+        self.website_frames.clear()
         
-        # Update websites with proper formatting
-        for i, website in enumerate(self.websites):
-            # Create frame for the website with gray background
+        for idx, website in enumerate(self.websites, 1):
+            # Create frame for each website
             bg_color = "#e6e6e6" if ctk.get_appearance_mode() == "Light" else "#333333"
-            website_frame = ctk.CTkFrame(self.website_scrollable_frame, fg_color=bg_color)
-            website_frame.pack(fill="x", padx=10, pady=(1, 0))  # Small top padding for separation
+            website_frame = ctk.CTkFrame(
+                self.website_scrollable_frame,
+                fg_color=bg_color,
+                corner_radius=10
+            )
+            website_frame.pack(fill="x", padx=10, pady=(5 if idx == 1 else 2))
             self.website_frames.append(website_frame)
-
+            
+            # Create left frame for index
+            index_frame = ctk.CTkFrame(
+                website_frame,
+                fg_color="#007AFF",  # Blue accent color
+                width=30,
+                height=32,
+                corner_radius=10
+            )
+            index_frame.pack(side="left", padx=(0, 10))
+            index_frame.pack_propagate(False)
+            
+            # Add index number
+            index_label = ctk.CTkLabel(
+                index_frame,
+                text=str(idx),
+                font=("Arial Bold", 14),
+                text_color="white"
+            )
+            index_label.place(relx=0.5, rely=0.5, anchor="center")
+            
+            # Create right frame for website content
+            content_frame = ctk.CTkFrame(
+                website_frame,
+                fg_color="transparent"
+            )
+            content_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=3)
+            
             # Add website name
-            website_label = ctk.CTkLabel(website_frame, text=website, font=("Arial", 14), anchor="w", height=24)
-            website_label.pack(fill="x", padx=10, pady=0)
+            website_label = ctk.CTkLabel(
+                content_frame,
+                text=website,
+                font=("Arial", 14),
+                anchor="w"
+            )
+            website_label.pack(side="left", fill="x", expand=True)
+            
+            # Add launch button
+            launch_button = ctk.CTkButton(
+                content_frame,
+                text="Launch",
+                width=70,
+                height=24,
+                font=("Arial", 12),
+                fg_color="#28a745",  # Green color
+                hover_color="#218838",  # Darker green
+                command=lambda url=website: self.launch_website(url)
+            )
+            launch_button.pack(side="right", padx=5)
 
     def add_application(self):
         add_type = messagebox.askquestion("Add Application", 
@@ -432,11 +560,9 @@ class AppWindow:
         self.update_listboxes()
 
     def add_website(self):
-        website = simpledialog.askstring("Add Website", "Enter website URL:")
-        if website:
-            if not website.startswith(('http://', 'https://')):
-                website = 'https://' + website
-            self.websites.append(website)
+        website_url = simpledialog.askstring("Add Website", "Enter the website URL:")
+        if website_url:
+            self.websites.append(website_url)
             self.file_handler.save_websites(self.websites)
             self.update_listboxes()
 
@@ -466,23 +592,11 @@ class AppWindow:
             messagebox.showinfo("Success", f"Removed {removed_count} application(s)")
 
     def remove_website(self):
-        # Get the index of the clicked website frame
-        selected_frame = None
-        for i, frame in enumerate(self.website_frames):
-            if frame.winfo_containing(
-                frame.winfo_pointerx() - frame.winfo_rootx(),
-                frame.winfo_pointery() - frame.winfo_rooty()
-            ):
-                selected_frame = i
-                break
-
-        if selected_frame is not None:
-            website = self.websites[selected_frame]
-            if messagebox.askyesno("Remove Website", f"Are you sure you want to remove {website}?"):
-                self.websites.pop(selected_frame)
-                self.file_handler.save_websites(self.websites)
-                self.update_listboxes()
-                messagebox.showinfo("Success", f"Removed {website}")
+        selected = self.website_listbox.curselection()
+        if selected:
+            self.websites.pop(selected[0])
+            self.file_handler.save_websites(self.websites)
+            self.update_listboxes()
 
     def launch_applications(self):
         """Launch all applications in My Applications tab"""
@@ -499,14 +613,11 @@ class AppWindow:
             messagebox.showinfo("Info", "No applications to launch")
 
     def launch_websites(self):
-        if not self.websites:
-            messagebox.showinfo("No Websites", "No websites to launch.")
-            return
-        
-        for website in self.websites:
-            self.app_launcher.launch_website(website)
-        
-        messagebox.showinfo("Success", f"Launched {len(self.websites)} website(s)")
+        """Launch all websites in Websites tab"""
+        if self.websites:
+            self.app_launcher.launch_websites(self.websites)
+        else:
+            messagebox.showinfo("Info", "No websites to launch")
 
     def launch_all(self):
         """Launch both applications and websites"""
@@ -514,11 +625,12 @@ class AppWindow:
         self.launch_websites()
 
     def update_all_apps_list(self):
-        """Update the All Apps list with checkboxes"""
-        # Clear existing items
-        self.all_apps_listbox.clear()
-        
-        # Get the list of installed applications
+        # Clear existing frames
+        for frame in self.all_apps_frames:
+            frame.destroy()
+        self.all_apps_frames.clear()
+
+        # Get all installed apps
         installed_apps = SystemApps.get_installed_apps()
         
         # Convert UWP_APPS to list of dictionaries
@@ -534,85 +646,192 @@ class AppWindow:
                 elif "uwp_name" in app:
                     my_apps_names.add(app["uwp_name"])
         
-        # Add each application to the listbox
-        for i, app in enumerate(installed_apps):
-            if isinstance(app, dict):
-                app_name = app.get("name") or app.get("uwp_name", "Unknown")
-            else:
-                app_name = str(app)
+        # Update the list with proper formatting
+        for idx, app in enumerate(installed_apps, 1):
+            # Create frame for each app
+            bg_color = "#e6e6e6" if ctk.get_appearance_mode() == "Light" else "#333333"
+            app_frame = ctk.CTkFrame(
+                self.all_apps_scrollable_frame,
+                fg_color=bg_color,
+                corner_radius=10
+            )
+            app_frame.pack(fill="x", padx=10, pady=(5 if idx == 1 else 2))
+            self.all_apps_frames.append(app_frame)
             
-            # If app is in My Applications, set selected background
-            is_selected = app_name in my_apps_names
-            self.all_apps_listbox.insert(i, app_name, selected=is_selected)
+            # Create left frame for index
+            index_frame = ctk.CTkFrame(
+                app_frame,
+                fg_color="#007AFF",  # Blue accent color
+                width=30,
+                height=32,
+                corner_radius=10
+            )
+            index_frame.pack(side="left", padx=(0, 10))
+            index_frame.pack_propagate(False)
+            
+            # Add index number
+            index_label = ctk.CTkLabel(
+                index_frame,
+                text=str(idx),
+                font=("Arial Bold", 14),
+                text_color="white"
+            )
+            index_label.place(relx=0.5, rely=0.5, anchor="center")
+
+            # Create checkbox frame
+            checkbox_frame = ctk.CTkFrame(
+                app_frame,
+                fg_color="transparent"
+            )
+            checkbox_frame.pack(side="left", fill="both", expand=True, padx=(0, 10), pady=3)
+
+            # Format app name based on type
+            if isinstance(app, dict):
+                if "uwp" in app:
+                    app_name = app["uwp_name"]
+                    display_name = f"UWP: {app_name}"
+                else:
+                    app_name = app["name"]
+                    display_name = app_name
+            else:
+                app_name = os.path.basename(app)
+                display_name = app_name
+
+            # Add checkbox with app name
+            checkbox_var = tk.BooleanVar(value=app_name in my_apps_names)
+            checkbox = ctk.CTkCheckBox(
+                checkbox_frame,
+                text=display_name,
+                variable=checkbox_var,
+                font=("Arial", 14),
+                text_color="white" if ctk.get_appearance_mode() == "Dark" else "black",
+                width=20,
+                height=20,
+                corner_radius=4,
+                border_width=2
+            )
+            checkbox.pack(side="left", fill="x", expand=True)
 
     def add_from_all_apps(self):
         """Add selected applications from All Apps to My Applications"""
-        checked_items = self.all_apps_listbox.get_checked_items()
+        checked_items = []
+        for frame in self.all_apps_frames:
+            checkbox = None
+            for child in frame.winfo_children():
+                if isinstance(child, ctk.CTkFrame) and child.winfo_children():
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ctk.CTkCheckBox) and grandchild.get():
+                            checked_items.append(grandchild.cget("text"))
+                            break
+
         if not checked_items:
             messagebox.showinfo("Info", "No applications selected")
             return
-        
+
         added_count = 0
         installed_apps = SystemApps.get_installed_apps()
-        uwp_apps = [{"uwp_name": name, "uwp": app_id} for name, app_id in UWP_APPS.items()]
-        installed_apps.extend(uwp_apps)
-        
+
         for item in checked_items:
-            # Check if app is already in My Applications
-            if not any(app.get("name") == item or app.get("uwp_name") == item for app in self.apps):
-                # Find the app info from the installed apps
-                app_info = None
-                for app in installed_apps:
-                    if isinstance(app, dict):
-                        if app.get("name") == item or app.get("uwp_name") == item:
-                            app_info = app
+            # Handle UWP apps
+            if item.startswith("UWP: "):
+                app_name = item.replace("UWP: ", "")
+                if app_name in UWP_APPS:
+                    if not any(app.get("uwp_name") == app_name for app in self.apps):
+                        self.apps.append({"uwp_name": app_name, "uwp": UWP_APPS[app_name]})
+                        added_count += 1
+            else:
+                # Handle regular apps
+                if not any(app.get("name") == item for app in self.apps):
+                    # Find the app in installed apps
+                    for app_info in installed_apps:
+                        if app_info.get("name") == item:
+                            self.apps.append({
+                                "name": item,
+                                "path": app_info.get("exe_path", "")
+                            })
+                            added_count += 1
                             break
-                    elif str(app) == item:
-                        app_info = {"name": str(app)}
-                        break
-                
-                if app_info:
-                    self.apps.append(app_info)
-                    added_count += 1
-                    # Set selected background in All Apps
-                    self.all_apps_listbox.set_item_background(item, self.all_apps_listbox.selected_bg)
-        
+
         if added_count > 0:
+            # Save the updated apps list
             self.file_handler.save_applications(self.apps)
+            # Update both listboxes
             self.update_listboxes()
             messagebox.showinfo("Success", f"Added {added_count} application(s) to My Applications")
         else:
-            messagebox.showinfo("Info", "Selected applications are already in My Applications")
+            messagebox.showinfo("Info", "No new applications were added")
 
     def remove_from_all_apps(self):
         """Remove selected applications from My Applications"""
-        checked_items = self.all_apps_listbox.get_checked_items()
+        checked_items = []
+        for frame in self.all_apps_frames:
+            checkbox = None
+            for child in frame.winfo_children():
+                if isinstance(child, ctk.CTkFrame) and child.winfo_children():
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ctk.CTkCheckBox) and grandchild.get():
+                            checked_items.append(grandchild.cget("text").replace("UWP: ", ""))
+                            break
+
         if not checked_items:
             messagebox.showinfo("Info", "No applications selected")
             return
-        
+
         removed_count = 0
         for item in checked_items:
-            # Find and remove the app from My Applications
+            # Remove from My Applications if present
             for app in self.apps[:]:
-                if app.get("name") == item or app.get("uwp_name") == item:
+                if (app.get("name") == item) or (app.get("uwp_name") == item):
                     self.apps.remove(app)
                     removed_count += 1
-                    # Reset background and uncheck in All Apps
-                    self.all_apps_listbox.reset_item_background(item)
-                    break
-        
+
         if removed_count > 0:
+            # Save the updated apps list
             self.file_handler.save_applications(self.apps)
+            # Update both listboxes
             self.update_listboxes()
             messagebox.showinfo("Success", f"Removed {removed_count} application(s) from My Applications")
         else:
-            messagebox.showinfo("Info", "Selected applications are not in My Applications")
+            messagebox.showinfo("Info", "No applications were removed")
 
     def select_all_apps(self):
-        """Select all applications in the list"""
-        self.all_apps_listbox.select_all()
+        """Select all applications in the All Apps tab"""
+        for frame in self.all_apps_frames:
+            for child in frame.winfo_children():
+                if isinstance(child, ctk.CTkFrame) and child.winfo_children():
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ctk.CTkCheckBox):
+                            grandchild.select()
 
     def unselect_all_apps(self):
-        """Unselect all applications in the list"""
-        self.all_apps_listbox.unselect_all()
+        """Unselect all applications in the All Apps tab"""
+        for frame in self.all_apps_frames:
+            for child in frame.winfo_children():
+                if isinstance(child, ctk.CTkFrame) and child.winfo_children():
+                    for grandchild in child.winfo_children():
+                        if isinstance(grandchild, ctk.CTkCheckBox):
+                            grandchild.deselect()
+
+def update_listbox_colors(app_listbox, website_listbox, tabview, button_frame):
+    appearance_mode = ctk.get_appearance_mode().lower()
+    
+    # Update app listbox colors
+    if appearance_mode == "dark":
+        app_listbox.configure(bg="#2b2b2b", fg="white")
+    else:
+        app_listbox.configure(bg="#dbdbdb", fg="black")
+    
+    # Update tabview colors
+    if appearance_mode == "dark":
+        tabview.configure(fg_color="#333333")
+        button_frame.configure(fg_color="#333333")
+    else:
+        tabview.configure(fg_color="#ebebeb")
+        button_frame.configure(fg_color="#ebebeb")
+    
+    # Update website frames colors
+    for frame in website_listbox:
+        if appearance_mode == "dark":
+            frame.configure(fg_color="#333333")
+        else:
+            frame.configure(fg_color="#ebebeb")
