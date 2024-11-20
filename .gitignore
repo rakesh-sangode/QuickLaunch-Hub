@@ -2,8 +2,12 @@ venv/
 build/
 dist/
 **/__pycache__/
+__pycache__/
 *.spec
 *.exe
 *.exe.manifest
 *.exe.manifest
 main.spec
+# Python cache files
+*.py[cod]
+*$py.class
