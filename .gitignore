@@ -9,5 +9,33 @@ __pycache__/
 *.exe.manifest
 main.spec
 # Python cache files
+__pycache__/
 *.py[cod]
 *$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local development settings
+.env
+.env.local
+
+# Windows specific
+Thumbs.db
+Desktop.ini
+
+# Log files
+*.log
